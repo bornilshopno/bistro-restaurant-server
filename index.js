@@ -32,7 +32,19 @@ async function run() {
     const menuCollection = database.collection("menus");
     const reviewsCollection = database.collection("reviews");
     const cartsCollection = database.collection("carts");
+    const userCollection = database.collection("users");
 
+    app.post('/users', async (req,res)=>{
+      const user=req.body;
+      //insert email if user doesnt exists
+      const query= {email:user.email}
+      const existingUser=await userCollection.findOne(query)
+      if(existingUser){
+        return res.send({message: 'user already exists', insertedId : null,})
+      }
+      const result= await userCollection.insertOne(user);
+      res.send(result)
+    })
     app.post("/carts", async(req,res)=>{
       const cartItem=req.body
       const result= await cartsCollection.insertOne(cartItem)
