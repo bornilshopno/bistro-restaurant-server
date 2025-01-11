@@ -65,6 +65,7 @@ async function run() {
       const query = { email: email };
       const user = await userCollection.findOne(query);
       const isAdmin = user?.role === "Admin";
+     
       if (!isAdmin) {
         return res.status(403).send({ message: 'forbidden access' });
       }
@@ -89,6 +90,7 @@ async function run() {
       };
       res.send({ admin });
     })
+
 
     app.patch("/users/admin/:id", verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
