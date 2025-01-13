@@ -2,6 +2,7 @@ require('dotenv').config()
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express()
 const port = process.env.PORT || 5000
@@ -34,6 +35,7 @@ async function run() {
     const reviewsCollection = database.collection("reviews");
     const cartsCollection = database.collection("carts");
     const userCollection = database.collection("users");
+    const paymentCollection = database.collection("payments");
 
     //jwt related api
     app.post('/jwt', async (req, res) => {
@@ -65,7 +67,7 @@ async function run() {
       const query = { email: email };
       const user = await userCollection.findOne(query);
       const isAdmin = user?.role === "Admin";
-     
+
       if (!isAdmin) {
         return res.status(403).send({ message: 'forbidden access' });
       }
@@ -186,6 +188,47 @@ async function run() {
       }
       const result = await menuCollection.updateOne(filter, updatedDoc);
       res.send(result)
+    })
+
+    //Payment Intent
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+      console.log(amount, 'amount inside the intent')
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        payment_method_types: ['card']
+      });
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      })
+
+
+    })
+
+    app.get("/payments/:email",verifyToken, async(req,res)=>{
+      const query={email:req.params.email}
+      if(req.params.email !== req.decoded.email){
+        return res.status(403).send({message: "forbidden access"})
+      }
+      const result=await paymentCollection.find(query).toArray();
+      res.send(result)
+    })
+
+    app.post("/payments", async (req, res) => {
+      const payment = req.body;
+      const paymentResult = await paymentCollection.insertOne(payment)
+      console.log('payment info', payment)
+
+      //carefully delete items(paid for) from the cart
+      const query = {
+        _id: {
+          $in: payment.cartIds.map(id => ObjectId.createFromHexString(id))
+        }
+      }
+      const deleteResult = await cartsCollection.deleteMany(query);
+      res.send({ paymentResult, deleteResult })
     })
 
     // Send a ping to confirm a successful connection
