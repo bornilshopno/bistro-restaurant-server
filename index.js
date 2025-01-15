@@ -56,7 +56,8 @@ async function run() {
         if (err) {
           return res.status(401).send({ message: 'unauthorised access' });
         }
-
+console.log('req.decoded', req.decoded)
+console.log('decoded', decoded)
         req.decoded = decoded;
         next();
       });
